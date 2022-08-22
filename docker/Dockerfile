@@ -1,0 +1,77 @@
+FROM openjdk:11-slim
+
+# Variables that define which software versions to install.
+ARG HADOOP_VERSION=3.3.1
+ENV JAVA_HOME=/usr/local/openjdk-11
+
+# Variables that define which software versions to install.
+ARG SCALA_VER=2.12.10
+ARG SPARK_VERSION=3.3.0
+ARG PACKAGE=spark-$SPARK_VERSION-bin-hadoop3
+ENV PYTHON_VERSION=3.8.12
+ENV PYTHON=3.8
+
+# Install dependencies
+RUN apt update \
+    && apt install -y curl tini libc6 libpam-modules libnss3 scala\
+    && apt install -y --no-install-recommends equivs \
+    && apt-get autoremove -yqq --purge \
+    && apt-get clean \
+    && rm -rf \
+        /var/lib/apt/lists/* \
+        /tmp/* \
+        /var/tmp/* \
+        /usr/share/man \
+        /usr/share/doc \
+        /usr/share/doc-base
+
+###############################################################
+###############################################################
+
+# download and install python
+RUN apt-get update && \
+	apt-get install libncursesw5-dev libssl-dev libsqlite3-dev tk-dev libgdbm-dev libc6-dev libbz2-dev libffi-dev zlib1g-dev liblzma-dev uuid-dev libreadline-dev \
+        build-essential vim nano sed curl -y && \
+	cd /opt && \
+	curl https://www.python.org/ftp/python/${PYTHON_VERSION}/Python-${PYTHON_VERSION}.tgz | \
+        tar -zx &&\
+	cd Python-${PYTHON_VERSION} && \
+	./configure --enable-optimizations && \
+	make altinstall
+RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python${PYTHON} 2 && \
+	sed -i -e '$aalias python=python3' ~/.bashrc
+
+# install requirements
+COPY requirements.txt /tmp/requirements.txt
+RUN /usr/local/bin/python${PYTHON} -m pip install --upgrade pip && \
+    /usr/local/bin/pip${PYTHON} install --no-cache -r /tmp/requirements.txt && \
+    /usr/local/bin/pip${PYTHON} install pyspark==${SPARK_VERSION}
+
+###############################################################
+###############################################################
+
+# Download and install Spark.
+RUN curl https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/$PACKAGE.tgz \
+	| tar -xz -C /opt/ \
+	&& ln -s /opt/$PACKAGE /opt/spark
+
+# Add 'spark' user so that this cluster is not run as root.
+RUN groupadd -g 1080 spark && \
+    useradd -r -m -u 1080 -g spark spark && \
+    chown -R -L spark /opt/spark && \
+    chgrp -R -L spark /opt/spark
+
+# Set necessary environment variables.
+ENV SPARK_HOME="/opt/spark"
+ENV PATH="/opt/spark/bin:/usr/local/bin/python${PYTHON}:${PATH}"
+# RUN echo "export SPARK_DIST_CLASSPATH=$(hadoop classpath)" >> /opt/spark/conf/spark-env.sh
+
+COPY spark-defaults.conf /opt/spark/conf/
+COPY spark-entrypoint.sh /opt/entrypoint.sh
+
+RUN /opt/spark/bin/spark-submit --class org.apache.spark.examples.SparkPi --master local[4] /opt/spark/examples/jars/spark-examples_*.jar && \
+    mv /root/.ivy2/jars/* /opt/spark/jars
+
+RUN chmod +x /opt/entrypoint.sh
+#ENTRYPOINT [ "/opt/entrypoint.sh" ]
+CMD ["jupyter", "notebook","--no-browser","--ip=0.0.0.0","--allow-root","--port=8888","--NotebookApp.token=''","--NotebookApp.password=''"]
