@@ -42,7 +42,7 @@ RUN update-alternatives --install /usr/bin/python3 python3 /usr/local/bin/python
 	sed -i -e '$aalias python=python3' ~/.bashrc
 
 # install requirements
-COPY requirements.txt /tmp/requirements.txt
+COPY spark/requirements.txt /tmp/requirements.txt
 RUN /usr/local/bin/python${PYTHON} -m pip install --upgrade pip && \
     /usr/local/bin/pip${PYTHON} install --no-cache -r /tmp/requirements.txt && \
     /usr/local/bin/pip${PYTHON} install pyspark==${SPARK_VERSION}
@@ -66,12 +66,13 @@ ENV SPARK_HOME="/opt/spark"
 ENV PATH="/opt/spark/bin:/usr/local/bin/python${PYTHON}:${PATH}"
 # RUN echo "export SPARK_DIST_CLASSPATH=$(hadoop classpath)" >> /opt/spark/conf/spark-env.sh
 
-COPY spark-defaults.conf /opt/spark/conf/
-COPY spark-entrypoint.sh /opt/entrypoint.sh
+COPY spark/spark-defaults.conf /opt/spark/conf/
+COPY spark/spark-entrypoint.sh /opt/entrypoint.sh
 
 RUN /opt/spark/bin/spark-submit --class org.apache.spark.examples.SparkPi --master local[4] /opt/spark/examples/jars/spark-examples_*.jar && \
     mv /root/.ivy2/jars/* /opt/spark/jars
 
 RUN chmod +x /opt/entrypoint.sh
 #ENTRYPOINT [ "/opt/entrypoint.sh" ]
+WORKDIR /home/spark
 CMD ["jupyter", "notebook","--no-browser","--ip=0.0.0.0","--allow-root","--port=8888","--NotebookApp.token=''","--NotebookApp.password=''"]
