@@ -84,8 +84,8 @@ services:
       retries: 50
     restart: always
     ports:
+      - "8081:8080"
       - "8888:8888"
-      - "22:22"
 
   # Run container as root container: https://docs.bitnami.com/tutorials/work-with-non-root-containers/
   spark-master:

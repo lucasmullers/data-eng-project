@@ -68,10 +68,13 @@ ENV PATH="/opt/spark/bin:/usr/local/bin/python${PYTHON}:${PATH}"
 
 COPY spark/spark-defaults.conf /opt/spark/conf/
 COPY spark/spark-entrypoint.sh /opt/entrypoint.sh
+RUN chmod +x /opt/entrypoint.sh
 
 RUN /opt/spark/bin/spark-submit --class org.apache.spark.examples.SparkPi --master local[4] /opt/spark/examples/jars/spark-examples_*.jar && \
     mv /root/.ivy2/jars/* /opt/spark/jars
 
-RUN chmod +x /opt/entrypoint.sh
+RUN mkdir -p /scripts
+COPY spark/start.sh /scripts/start.sh
 WORKDIR /home/spark
-CMD ["jupyter", "notebook","--no-browser","--ip=0.0.0.0","--allow-root","--port=8888","--NotebookApp.token=''","--NotebookApp.password=''"]
+
+CMD sh -c "bash /scripts/start.sh"
