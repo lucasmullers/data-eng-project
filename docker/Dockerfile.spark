@@ -73,6 +73,5 @@ RUN /opt/spark/bin/spark-submit --class org.apache.spark.examples.SparkPi --mast
     mv /root/.ivy2/jars/* /opt/spark/jars
 
 RUN chmod +x /opt/entrypoint.sh
-#ENTRYPOINT [ "/opt/entrypoint.sh" ]
 WORKDIR /home/spark
 CMD ["jupyter", "notebook","--no-browser","--ip=0.0.0.0","--allow-root","--port=8888","--NotebookApp.token=''","--NotebookApp.password=''"]

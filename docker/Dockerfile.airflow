@@ -1,0 +1,23 @@
+FROM apache/airflow:2.3.3
+
+ARG SPARK_VERSION=3.3.0
+ARG PACKAGE=spark-$SPARK_VERSION-bin-hadoop3
+USER root
+
+# Download and install Spark.
+RUN curl https://archive.apache.org/dist/spark/spark-$SPARK_VERSION/$PACKAGE.tgz \
+	| tar -xz -C /opt/ \
+	&& ln -s /opt/$PACKAGE /opt/spark
+
+# Add 'spark' user so that this cluster is not run as root.
+RUN groupadd -g 1080 spark && \
+    useradd -r -m -u 1080 -g spark spark && \
+    chown -R -L spark /opt/spark && \
+    chgrp -R -L spark /opt/spark
+
+RUN apt update && apt install default-jdk -y 
+
+# Set necessary environment variables.
+ENV JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
+ENV SPARK_HOME="/opt/spark"
+ENV PATH="/opt/spark/bin:/usr/local/bin/python${PYTHON}:${PATH}"
